@@ -1,0 +1,4 @@
+black
+dash
+pandas
+pdf2image

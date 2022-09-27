@@ -2,10 +2,12 @@ import datetime
 import io
 import time
 import base64
+
 import dash
 from dash.dependencies import Input, Output, State
 import dash_html_components as html
 import dash_core_components as dcc
+
 import pandas as pd
 from pdf2image import convert_from_bytes
 
@@ -51,7 +53,7 @@ def parse_coa_contents(contents, filename, date):
         poppler_path=r"C:\Users\eugeniobernard\Local_documents\dash\poppler-0.68.0\bin",
     )
 
-    encoded = pil_to_b64_dash(images[0, 1])
+    encoded = pil_to_b64_dash(images[0])
 
     return html.Div(
         [
@@ -72,23 +74,37 @@ app.layout = html.Div(
         html.Div(
             children=[
                 # Title
-                html.H1("KVE Repair dashboard"),
+                html.H1("KVE Composite Repair dashboard"),
                 # OEM Selection
                 dcc.Dropdown(
                     value=[""],
-                    placeholder="Select an OEM...",
+                    placeholder="Select an OEM manufacture...",
                     options=[
                         {"label": i, "value": i}
                         for i in [
                             "Airbus",
                             "Boeing",
                             "Fokker",
-                            "Leonardo",
                             "New client...",
                         ]
                     ],
                     multi=False,
                     id="OEM-dropdown",
+                ),
+                # Aircraft/product Selection
+                dcc.Dropdown(
+                    value=[""],
+                    placeholder="Select a product...",
+                    options=[
+                        {"label": i, "value": i}
+                        for i in [
+                            "A320",
+                            "A330",
+                            "New product...",
+                        ]
+                    ],
+                    multi=True,
+                    id="Product-dropdown",
                 ),
                 spacing(),
                 html.Div(

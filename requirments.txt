@@ -2,3 +2,4 @@ black
 dash
 pandas
 pdf2image
+open3d

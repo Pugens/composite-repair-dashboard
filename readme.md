@@ -1,30 +1,34 @@
 # KVE repair dashboard
 
-This is a dashboard for KVE repair.
-
-![Materials](airplane_materials.bmp)
+This is a digital framework to track KVE repairs and scans.
 
 ## Installation
-Install conda from here:
-https://docs.conda.io/en/latest/miniconda.html
-
 Install git from here:
 https://git-scm.com/downloads
 
-Clone this repository:
+Open a comand line in the desired folder and clone the repository:
 ```bash 
-git clone
+git clone https://github.com/Pugens/composite-repair-dashboard
 ```
 
-Run the following commands:
-```bash 
-conda env create -f environment.yml
-conda activate kve
-```
+Install libraries using pip:
+```bash
+pip install -r requirements.txt
+``` 
 
 Then run the app.py file with this command:
 ```bash
 python app.py
+```
+
+### Optional:
+Install conda from here to manage python environments:
+https://docs.conda.io/en/latest/miniconda.html
+
+And run the following commands when you have conda installed:
+```bash 
+conda env create -f environment.yml
+conda activate kve
 ```
 
 ## Research links:

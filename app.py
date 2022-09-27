@@ -1,12 +1,12 @@
 import datetime
 import io
 import time
+import os
 import base64
+from turtle import onrelease
 
-import dash
-from dash.dependencies import Input, Output, State
-import dash_html_components as html
-import dash_core_components as dcc
+from dash import Dash, dcc, html, dash_table, Input, Output, State
+import plotly.express as px
 
 import pandas as pd
 from pdf2image import convert_from_bytes
@@ -67,46 +67,60 @@ def parse_coa_contents(contents, filename, date):
 
 # endregion
 
-app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+# region Main App
+app = Dash(__name__, external_stylesheets=external_stylesheets)
+
+# path to .csv files:
+oems_table_path = os.path.join(os.getcwd(), "tables", "oems_table.csv")
+products_table_path = os.path.join(os.getcwd(), "tables", "products_table.csv")
+repairs_table_path = os.path.join(os.getcwd(), "tables", "repairs_table.csv")
+
+# read .csv files and list first column:
+oems_table = pd.read_csv(oems_table_path)
+oems_list = oems_table["OEM"]
+prod_table = pd.read_csv(products_table_path)
+prod_list = prod_table["Product"]
+repairs_table = pd.read_csv(repairs_table_path)
+repairs_list = repairs_table["Repair"]
 
 app.layout = html.Div(
     children=[
         html.Div(
             children=[
                 # Title
-                html.H1("KVE Composite Repair dashboard"),
+                html.H1(
+                    "KVE Composite Repair dashboard",
+                    style={"text-align": "center", "background-color": "#ede9e8"},
+                ),
                 # OEM Selection
                 dcc.Dropdown(
                     value=[""],
                     placeholder="Select an OEM manufacture...",
-                    options=[
-                        {"label": i, "value": i}
-                        for i in [
-                            "Airbus",
-                            "Boeing",
-                            "Fokker",
-                            "New client...",
-                        ]
-                    ],
+                    options=[{"label": i, "value": i} for i in oems_list],
                     multi=False,
                     id="OEM-dropdown",
                 ),
+                spacing(),
                 # Aircraft/product Selection
                 dcc.Dropdown(
                     value=[""],
                     placeholder="Select a product...",
-                    options=[
-                        {"label": i, "value": i}
-                        for i in [
-                            "A320",
-                            "A330",
-                            "New product...",
-                        ]
-                    ],
-                    multi=True,
+                    options=[{"label": i, "value": i} for i in prod_list],
+                    multi=False,
                     id="Product-dropdown",
                 ),
                 spacing(),
+                # Repair Selection
+                dcc.Dropdown(
+                    value=[""],
+                    placeholder="Select a repair...",
+                    options=[{"label": i, "value": i} for i in repairs_list],
+                    multi=False,
+                    id="Repair-dropdown",
+                    # onrelease="console.log('hello')",
+                ),
+                spacing(),
+                # Upload pictures of repair
                 html.Div(
                     [
                         "Picture name: ",
@@ -115,6 +129,7 @@ app.layout = html.Div(
                 ),
                 spacing(),
                 html.Div(id="my-output"),
+                spacing(),
                 dcc.Upload(
                     id="upload-image",
                     children=html.Div(["Drag and Drop or ", html.A("Select picture")]),
@@ -153,10 +168,29 @@ app.layout = html.Div(
         ),
         html.Hr(),
         html.Div(id="output-coa"),
+        html.Hr(),
+        html.Div(id="output-image"),
     ]
 )
 
+# endregion
+
 # region Callbacks
+# Show uploaded image
+@app.callback(
+    Output("output-image", "children"),
+    [Input("upload-image", "contents")],
+    [State("upload-image", "filename"), State("upload-image", "last_modified")],
+)
+def update_output(list_of_contents, list_of_names, list_of_dates):
+    if list_of_contents is not None:
+        children = [
+            parse_contents(c, n, d)
+            for c, n, d in zip(list_of_contents, list_of_names, list_of_dates)
+        ]
+        return children
+
+
 @app.callback(Output("output", "children"), [Input("OEM-dropdown", "value")])
 def display_output(value):
     return str(value)

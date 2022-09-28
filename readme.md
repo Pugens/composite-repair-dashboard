@@ -28,11 +28,16 @@ https://docs.conda.io/en/latest/miniconda.html
 And run the following commands when you have conda installed:
 ```bash 
 conda env create -f environment.yml
-conda activate kve
+conda activate composite_repair_dashboard
 ```
 
-## Research links:
+## Dev links:
+### Advanced guide on dash:
+https://towardsdatascience.com/create-a-professional-dasbhoard-with-dash-and-css-bootstrap-e1829e238fc5
+
 ### Pdf with python code:
 https://community.plotly.com/t/displaying-a-pdf-file-on-plotly-dash-dashboard-in-python/33493/10
 https://blog.alivate.com.au/poppler-windows/
 
+### Upload files:
+https://docs.faculty.ai/user-guide/apps/examples/dash_file_upload_download.html

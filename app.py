@@ -4,13 +4,14 @@ import time
 import os
 import base64
 
+from flask import Flask, send_from_directory
 from dash import Dash, dcc, html, dash_table, Input, Output, State
 import plotly.express as px
 
 import pandas as pd
 from pdf2image import convert_from_bytes
 
-external_stylesheets = ["https://codepen.io/chriddyp/pen/bWLwgP.css"]
+import open3d as o3d
 
 # region Helper functions
 def spacing():
@@ -24,6 +25,28 @@ def parse_contents(contents, filename, date):
             html.H6(datetime.datetime.fromtimestamp(date)),
             # HTML images accept base64 encoded strings in the same format
             # that is supplied by the upload
+            html.Img(src=contents),
+            html.Hr(),
+            html.Div("Raw Content"),
+            html.Pre(
+                contents[0:200] + "...",
+                style={"whiteSpace": "pre-wrap", "wordBreak": "break-all"},
+            ),
+        ]
+    )
+
+
+def parse_pcd(contents, filename, date):
+    content_type, content_string = contents.split(",")
+    decoded = base64.b64decode(content_string)
+    print(decoded)
+    pcd = o3d.io.read_point_cloud(io.BytesIO(decoded))
+    print(pcd)
+
+    return html.Div(
+        [
+            html.H5(filename),
+            html.H6(datetime.datetime.fromtimestamp(date)),
             html.Img(src=contents),
             html.Hr(),
             html.Div("Raw Content"),
@@ -66,7 +89,10 @@ def parse_pdf_contents(contents, filename, date):
 # endregion
 
 # region settings
-app = Dash(__name__, external_stylesheets=external_stylesheets)
+# path to uploaded files:
+UPLOAD_DIRECTORY = "/project/app_uploaded_files"
+if not os.path.exists(UPLOAD_DIRECTORY):
+    os.makedirs(UPLOAD_DIRECTORY)
 
 # path to pdf decoding library:
 poppler_path = os.path.join(os.getcwd(), "lib\\poppler-0.68.0\\bin")
@@ -105,9 +131,18 @@ pdf_uplaod_style = {
     "textAlign": "center",
     "margin": "10px",
 }
+
+
+external_stylesheets = ["https://codepen.io/chriddyp/pen/bWLwgP.css"]
+
 # endregion
 
 # region app layout
+# Normally, Dash creates its own Flask server internally. By creating our own,
+# we can create a route for downloading files directly:
+server = Flask(__name__)
+app = Dash(server=server, external_stylesheets=external_stylesheets)
+
 app.layout = html.Div(
     children=[
         html.Div(
@@ -119,7 +154,7 @@ app.layout = html.Div(
                 ),
                 # OEM Selection
                 dcc.Dropdown(
-                    value=[""],
+                    # value=[""],
                     placeholder="Select an OEM manufacture...",
                     options=[{"label": i, "value": i} for i in oems_list],
                     multi=False,
@@ -128,7 +163,7 @@ app.layout = html.Div(
                 spacing(),
                 # Aircraft/product Selection
                 dcc.Dropdown(
-                    value=[""],
+                    # value=[""],
                     placeholder="Select a product...",
                     options=[{"label": i, "value": i} for i in prod_list],
                     multi=False,
@@ -137,12 +172,11 @@ app.layout = html.Div(
                 spacing(),
                 # Repair Selection
                 dcc.Dropdown(
-                    value=[""],
+                    # value=[""],
                     placeholder="Select a repair...",
                     options=[{"label": i, "value": i} for i in repairs_list],
                     multi=False,
                     id="Repair-dropdown",
-                    # onrelease="console.log('hello')",
                 ),
                 spacing(),
                 # Upload pictures of repair
@@ -158,7 +192,7 @@ app.layout = html.Div(
                 html.Div(
                     [
                         dcc.Upload(
-                            className="three columns",
+                            className="three.columns",
                             id="upload-image",
                             children=html.Div(
                                 ["Drag and Drop or ", html.A("Select picture")]
@@ -166,9 +200,10 @@ app.layout = html.Div(
                             style=image_uplaod_style,
                             # Allow multiple files to be uploaded
                             multiple=True,
+                            accept="image/*",
                         ),
                         dcc.Upload(
-                            className="three columns",
+                            className="three.columns",
                             id="upload-coa",
                             children=html.Div(
                                 ["Drag and Drop or ", html.A("Select PDF")]
@@ -176,9 +211,10 @@ app.layout = html.Div(
                             style=pdf_uplaod_style,
                             # Allow multiple files to be uploaded
                             multiple=False,
+                            accept="application/pdf",
                         ),
                         dcc.Upload(
-                            className="three columns",
+                            className="three.columns",
                             id="upload-pcd",
                             children=html.Div(
                                 [
@@ -214,21 +250,28 @@ app.layout = html.Div(
 
 # region Callbacks
 @app.callback(
-    Output(component_id="picture-output-name", component_property="children"),
-    Input(component_id="picture-input-name", component_property="value"),
+    Output("picture-output-name", "children"),
+    Input("picture-input-name", "value"),
 )
 def update_output_div(input_value):
     return f"Output: {input_value}"
 
 
-# @app.callback(
-#     Output(component_id="upload-pcd", component_property="children"),
-#     Input(component_id="pcd-render", component_property="contents"),
-# )
-# def load_pcd_file(list_of_contents):
-#     if list_of_contents is not None:
-#         children = [parse_contents(c, n, d) for c, n, d in zip(list_of_contents)]
-#         return children
+@app.callback(
+    Output("pcd-render", "children"),
+    Input("upload-pcd", "contents"),
+    State("upload-pcd", "filename"),
+    State("upload-pcd", "last_modified"),
+)
+def load_pcd_file(list_of_contents, list_of_names, list_of_dates):
+    print(list_of_dates)
+    if list_of_contents is not None:
+        children = [
+            parse_pcd(list_of_contents)
+            # parse_pcd(c, n, d)
+            # for c, n, d in zip(list_of_contents, list_of_names, list_of_dates)
+        ]
+        return children
 
 
 @app.callback(

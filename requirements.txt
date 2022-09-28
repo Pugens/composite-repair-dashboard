@@ -1,5 +1,9 @@
 black
+numpy
+flask
 dash
 pandas
+plotly
+gunicorn
 pdf2image
 open3d

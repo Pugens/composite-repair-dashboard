@@ -6,13 +6,15 @@ import base64
 
 from flask import Flask, send_from_directory
 from dash import Dash, dcc, html, dash_table, Input, Output, State
+import plotly.graph_objects as go
 import plotly.express as px
 
+import numpy as np
 import pandas as pd
 from urllib.parse import quote as urlquote
 from pdf2image import convert_from_bytes
 
-import open3d as o3d
+from lib import o3d_h
 
 # region pre-run and helper functions definition
 def spacing():
@@ -23,7 +25,9 @@ def spacing():
 
 # region settings
 # path to uploaded files:
-upload_folder = "C:\\Users\\eugeniobernard\\local_workspaces\\composite-repair-dashboard\\project\\app_uploaded_files"
+upload_folder = (
+    "C:\\Users\\eugeniobernard\\local_workspaces\\composite-repair-dashboard\\test_run"
+)
 
 if not os.path.exists(upload_folder):
     os.makedirs(upload_folder)
@@ -151,7 +155,7 @@ app.layout = html.Div(
                             ),
                             style=pdf_uplaod_style,
                             # Allow multiple files to be uploaded
-                            multiple=False,
+                            multiple=True,
                             accept="application/pdf",
                         ),
                         dcc.Upload(
@@ -170,6 +174,7 @@ app.layout = html.Div(
                                 "margin": "10px",
                             },
                             multiple=True,
+                            accept=".ply, .pcd",
                         ),
                         # dcc.Upload(
                         #     # className="three.columns",
@@ -195,11 +200,13 @@ app.layout = html.Div(
         html.H2("File List"),
         html.Ul(id="file-list"),
         spacing(),
+        html.Button("Load pointcloud", id="load-pointcloud"),
+        spacing(),
         html.Div(
             [
                 html.Div(id="output-coa"),
                 html.Div(id="output-image-upload"),
-                html.Div(id="pcd-render"),
+                dcc.Graph(id="pcd-render"),
             ],
             className="row",
         ),
@@ -259,8 +266,6 @@ def parse_pdf_contents(contents, filename, date):
 
 def save_file(name, content):
     """Decode and store a file uploaded with Plotly Dash."""
-    print(name)
-
     if not os.path.exists(upload_folder):
         os.makedirs(upload_folder)
     data = content.encode("utf8").split(b";base64,")[1]
@@ -337,6 +342,53 @@ def show_coa(list_of_contents, list_of_names, list_of_dates):
     if list_of_contents is not None:
         children = [parse_pdf_contents(list_of_contents, list_of_names, list_of_dates)]
         return children
+
+
+@app.callback(
+    Output("pcd-render", "figure"),
+    Input("load-pointcloud", "n_clicks"),
+)
+def render_pcd(btn_click):
+    filename = uploaded_files()
+    if len(filename) == 0:
+        return go.Figure()
+    pcd = o3d_h.load_ply(os.path.join(upload_folder, filename[0]))
+
+    if pcd.is_empty():
+        exit()
+
+    o3d_h.estimate_normals(pcd, 0.1)
+
+    points = np.asarray(pcd.points)
+
+    colors = None
+    if pcd.has_colors():
+        colors = np.asarray(pcd.colors)
+    elif pcd.has_normals():
+        colors = (0.5, 0.5, 0.5) + np.asarray(pcd.normals) * 0.5
+
+    pcd.paint_uniform_color((1.0, 0.0, 0.0))
+    colors = np.asarray(pcd.colors)
+
+    fig = go.Figure(
+        data=[
+            go.Scatter3d(
+                x=points[:, 0],
+                y=points[:, 1],
+                z=points[:, 2],
+                mode="markers",
+                marker=dict(size=1, color=colors),
+            )
+        ],
+        layout=dict(
+            scene=dict(
+                xaxis=dict(visible=False),
+                yaxis=dict(visible=False),
+                zaxis=dict(visible=False),
+            )
+        ),
+    )
+    return fig
 
 
 # endregion

@@ -1,3 +1,4 @@
+lib/poppler-0.68.0
 samples
 data
 test_run
@@ -18,7 +19,6 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
 lib64/
 parts/
 sdist/

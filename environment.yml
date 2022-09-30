@@ -3,12 +3,12 @@ dependencies:
   - python=3.9
   - pip
   - pip:
-    - black
-    - numpy
-    - flask
-    - dash
-    - pandas
-    - plotly
-    - gunicorn
-    - pdf2image
-    - open3d
+      - black
+      - numpy
+      - flask
+      - dash
+      - pandas
+      - plotly
+      - open3d
+      - gunicorn
+      - pdf2image

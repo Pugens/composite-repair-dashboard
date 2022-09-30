@@ -4,6 +4,6 @@ flask
 dash
 pandas
 plotly
+open3d
 gunicorn
 pdf2image
-open3d

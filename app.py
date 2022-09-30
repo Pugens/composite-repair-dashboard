@@ -9,90 +9,24 @@ from dash import Dash, dcc, html, dash_table, Input, Output, State
 import plotly.express as px
 
 import pandas as pd
+from urllib.parse import quote as urlquote
 from pdf2image import convert_from_bytes
 
 import open3d as o3d
 
-# region Helper functions
+# region pre-run and helper functions definition
 def spacing():
     return html.Br()
-
-
-def parse_contents(contents, filename, date):
-    return html.Div(
-        [
-            html.H5(filename),
-            html.H6(datetime.datetime.fromtimestamp(date)),
-            # HTML images accept base64 encoded strings in the same format
-            # that is supplied by the upload
-            html.Img(src=contents),
-            html.Hr(),
-            html.Div("Raw Content"),
-            html.Pre(
-                contents[0:200] + "...",
-                style={"whiteSpace": "pre-wrap", "wordBreak": "break-all"},
-            ),
-        ]
-    )
-
-
-def parse_pcd(contents, filename, date):
-    content_type, content_string = contents.split(",")
-    decoded = base64.b64decode(content_string)
-    print(decoded)
-    pcd = o3d.io.read_point_cloud(io.BytesIO(decoded))
-    print(pcd)
-
-    return html.Div(
-        [
-            html.H5(filename),
-            html.H6(datetime.datetime.fromtimestamp(date)),
-            html.Img(src=contents),
-            html.Hr(),
-            html.Div("Raw Content"),
-            html.Pre(
-                contents[0:200] + "...",
-                style={"whiteSpace": "pre-wrap", "wordBreak": "break-all"},
-            ),
-        ]
-    )
-
-
-def pil_to_b64_dash(im):
-    buffered = io.BytesIO()
-    im.save(buffered, format="JPEG")
-    img_str = base64.b64encode(buffered.getvalue())
-    return bytes("data:image/jpeg;base64,", encoding="utf-8") + img_str
-
-
-def parse_pdf_contents(contents, filename, date):
-    content_type, content_string = contents.split(",")
-
-    decoded = base64.b64decode(content_string)
-    images = convert_from_bytes(
-        decoded,
-        poppler_path=poppler_path,
-    )
-
-    encoded = pil_to_b64_dash(images[0])
-
-    return html.Div(
-        [
-            # HTML images accept base64 encoded strings in the same format
-            # that is supplied by the upload
-            html.Img(src=encoded.decode("utf-8")),
-            html.Hr(),
-        ]
-    )
 
 
 # endregion
 
 # region settings
 # path to uploaded files:
-UPLOAD_DIRECTORY = "/project/app_uploaded_files"
-if not os.path.exists(UPLOAD_DIRECTORY):
-    os.makedirs(UPLOAD_DIRECTORY)
+upload_folder = "C:\\Users\\eugeniobernard\\local_workspaces\\composite-repair-dashboard\\project\\app_uploaded_files"
+
+if not os.path.exists(upload_folder):
+    os.makedirs(upload_folder)
 
 # path to pdf decoding library:
 poppler_path = os.path.join(os.getcwd(), "lib\\poppler-0.68.0\\bin")
@@ -143,6 +77,13 @@ external_stylesheets = ["https://codepen.io/chriddyp/pen/bWLwgP.css"]
 server = Flask(__name__)
 app = Dash(server=server, external_stylesheets=external_stylesheets)
 
+
+@server.route("/download/<path:path>")
+def download(path):
+    """Serve a file from the upload directory."""
+    return send_from_directory(upload_folder, path, as_attachment=True)
+
+
 app.layout = html.Div(
     children=[
         html.Div(
@@ -192,7 +133,7 @@ app.layout = html.Div(
                 html.Div(
                     [
                         dcc.Upload(
-                            className="three.columns",
+                            # className="three.columns",
                             id="upload-image",
                             children=html.Div(
                                 ["Drag and Drop or ", html.A("Select picture")]
@@ -203,7 +144,7 @@ app.layout = html.Div(
                             accept="image/*",
                         ),
                         dcc.Upload(
-                            className="three.columns",
+                            # className="three.columns",
                             id="upload-coa",
                             children=html.Div(
                                 ["Drag and Drop or ", html.A("Select PDF")]
@@ -214,37 +155,134 @@ app.layout = html.Div(
                             accept="application/pdf",
                         ),
                         dcc.Upload(
-                            className="three.columns",
-                            id="upload-pcd",
+                            id="upload-data",
                             children=html.Div(
-                                [
-                                    "Drag and Drop or ",
-                                    html.A("Select a pointcloud file"),
-                                ]
+                                ["Drag and drop or click to select a file to upload."]
                             ),
-                            style=pdf_uplaod_style,
-                            # Allow multiple files to be uploaded
-                            multiple=False,
-                            accept=".ply, .pcd",
+                            style={
+                                "width": "100%",
+                                "height": "60px",
+                                "lineHeight": "60px",
+                                "borderWidth": "1px",
+                                "borderStyle": "dashed",
+                                "borderRadius": "5px",
+                                "textAlign": "center",
+                                "margin": "10px",
+                            },
+                            multiple=True,
                         ),
+                        # dcc.Upload(
+                        #     # className="three.columns",
+                        #     id="upload-data",
+                        #     children=html.Div(
+                        #         [
+                        #             "Drag and Drop or ",
+                        #             html.A("Select a pointcloud file"),
+                        #         ]
+                        #     ),
+                        #     style=pdf_uplaod_style,
+                        #     # Allow multiple files to be uploaded
+                        #     multiple=False,
+                        #     # accept=".ply, .pcd",
+                        # ),
                     ],
                     style={"display": "flex"},
                     className="row",
                 ),
             ],
         ),
-        html.Hr(),
+        spacing(),
+        html.H2("File List"),
+        html.Ul(id="file-list"),
+        spacing(),
         html.Div(
             [
-                html.Div(id="output-coa", className="three columns"),
-                html.Div(id="output-image-upload", className="three columns"),
-                html.Div(id="pcd-render", className="three columns"),
+                html.Div(id="output-coa"),
+                html.Div(id="output-image-upload"),
+                html.Div(id="pcd-render"),
             ],
-            style={"display": "flex"},
             className="row",
         ),
     ]
 )
+
+# endregion
+
+# region callbacks helper functions
+
+
+def parse_contents(contents, filename, date):
+    return html.Div(
+        [
+            html.H5(filename),
+            html.H6(datetime.datetime.fromtimestamp(date)),
+            # HTML images accept base64 encoded strings in the same format
+            # that is supplied by the upload
+            html.Img(src=contents),
+            html.Hr(),
+            html.Div("Raw Content"),
+            html.Pre(
+                contents[0:200] + "...",
+                style={"whiteSpace": "pre-wrap", "wordBreak": "break-all"},
+            ),
+        ]
+    )
+
+
+def pil_to_b64_dash(im):
+    buffered = io.BytesIO()
+    im.save(buffered, format="JPEG")
+    img_str = base64.b64encode(buffered.getvalue())
+    return bytes("data:image/jpeg;base64,", encoding="utf-8") + img_str
+
+
+def parse_pdf_contents(contents, filename, date):
+    content_type, content_string = contents.split(",")
+
+    decoded = base64.b64decode(content_string)
+    images = convert_from_bytes(
+        decoded,
+        poppler_path=poppler_path,
+    )
+
+    encoded = pil_to_b64_dash(images[0])
+
+    return html.Div(
+        [
+            # HTML images accept base64 encoded strings in the same format
+            # that is supplied by the upload
+            html.Img(src=encoded.decode("utf-8")),
+            html.Hr(),
+        ]
+    )
+
+
+def save_file(name, content):
+    """Decode and store a file uploaded with Plotly Dash."""
+    print(name)
+
+    if not os.path.exists(upload_folder):
+        os.makedirs(upload_folder)
+    data = content.encode("utf8").split(b";base64,")[1]
+    with open(os.path.join(upload_folder, name), "wb") as fp:
+        fp.write(base64.decodebytes(data))
+
+
+def uploaded_files():
+    """List the files in the upload directory."""
+    files = []
+    for filename in os.listdir(upload_folder):
+        path = os.path.join(upload_folder, filename)
+        if os.path.isfile(path):
+            files.append(filename)
+    return files
+
+
+def file_download_link(filename):
+    """Create a Plotly Dash 'A' element that downloads a file from the app."""
+    location = "/download/{}".format(urlquote(filename))
+    return html.A(filename, href=location)
+
 
 # endregion
 
@@ -258,20 +296,21 @@ def update_output_div(input_value):
 
 
 @app.callback(
-    Output("pcd-render", "children"),
-    Input("upload-pcd", "contents"),
-    State("upload-pcd", "filename"),
-    State("upload-pcd", "last_modified"),
+    Output("file-list", "children"),
+    [Input("upload-data", "filename"), Input("upload-data", "contents")],
 )
-def load_pcd_file(list_of_contents, list_of_names, list_of_dates):
-    print(list_of_dates)
-    if list_of_contents is not None:
-        children = [
-            parse_pcd(list_of_contents)
-            # parse_pcd(c, n, d)
-            # for c, n, d in zip(list_of_contents, list_of_names, list_of_dates)
-        ]
-        return children
+def update_output(uploaded_filenames, uploaded_file_contents):
+    """Save uploaded files and regenerate the file list."""
+
+    if uploaded_filenames is not None and uploaded_file_contents is not None:
+        for name, data in zip(uploaded_filenames, uploaded_file_contents):
+            save_file(name, data)
+
+    files = uploaded_files()
+    if len(files) == 0:
+        return [html.Li("No files yet!")]
+    else:
+        return [html.Li(file_download_link(filename)) for filename in files]
 
 
 @app.callback(

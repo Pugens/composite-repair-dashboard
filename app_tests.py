@@ -1,72 +1,102 @@
-from operator import concat
-import dash
-from dash import dcc, Input, Output, html, dash_table
-import plotly.express as px
-import pandas as pd
+import base64
 import os
+from urllib.parse import quote as urlquote
 
-# import plotly
-import plotly.graph_objects as go
-
-
-# ======================== Dash App
-app = dash.Dash(__name__)
-
-# ======================== Getting input of directory and Latest filename
-PATH = str(
-    "C:\\Users\\eugen\\local_workspaces\\composite-repair-dashboard\\tables\\"
-)  # Use your path
-
-# Fetch all files in path
-fileNames = os.listdir(PATH)
-
-# Filter file name list for files ending with .csv
-fileNames = [file for file in fileNames if ".csv" in file]
-
-print(fileNames)
+from flask import Flask, send_from_directory
+import dash
+import dash_core_components as dcc
+import dash_html_components as html
+from dash.dependencies import Input, Output
 
 
-# ======================== App Layout
+upload_folder = "C:\\Users\\eugeniobernard\\local_workspaces\\composite-repair-dashboard\\project\\app_uploaded_files"
+
+if not os.path.exists(upload_folder):
+    os.makedirs(upload_folder)
+
+
+# Normally, Dash creates its own Flask server internally. By creating our own,
+# we can create a route for downloading files directly:
+server = Flask(__name__)
+app = dash.Dash(server=server)
+
+
+@server.route("/download/<path:path>")
+def download(path):
+    """Serve a file from the upload directory."""
+    return send_from_directory(upload_folder, path, as_attachment=True)
+
 
 app.layout = html.Div(
     [
-        html.H1(
-            "Table Content",
-            style={"text-align": "center", "background-color": "#ede9e8"},
+        html.H1("File Browser"),
+        html.H2("Upload"),
+        dcc.Upload(
+            id="upload-data",
+            children=html.Div(["Drag and drop or click to select a file to upload."]),
+            style={
+                "width": "100%",
+                "height": "60px",
+                "lineHeight": "60px",
+                "borderWidth": "1px",
+                "borderStyle": "dashed",
+                "borderRadius": "5px",
+                "textAlign": "center",
+                "margin": "10px",
+            },
+            multiple=True,
         ),
-        html.Div(
-            [
-                dcc.Dropdown(
-                    id="DropDown_FileName",
-                    options=[{"label": i, "value": i} for i in fileNames],
-                    # value=fileNames,
-                    placeholder="Select a File",
-                    multi=False,
-                    clearable=False,
-                ),
-            ]
-        ),
-        html.Div(
-            id="tblData",
-        ),
-    ]
+        html.H2("File List"),
+        html.Ul(id="file-list"),
+    ],
+    style={"max-width": "500px"},
 )
 
 
-@app.callback([Output("tblData", "children")], [Input("DropDown_FileName", "value")])
-def update_figure(DropDown_FileName):
-    # ======================== Reading Selected csv file
+def save_file(name, content):
+    """Decode and store a file uploaded with Plotly Dash."""
+    print(name)
+    # print(content)
+    # adfasdf = content.encode("utf8").split(b";base64,")
+    # print(adfasdf)
+    data = content.encode("utf8").split(b";base64,")[1]
+    with open(os.path.join(upload_folder, name), "wb") as fp:
+        fp.write(base64.decodebytes(data))
 
-    print(concat(PATH + DropDown_FileName))
-    analytics = pd.read_csv(PATH + DropDown_FileName)
-    analytics["Comb_wgt"] = analytics.Samples * analytics.Average
-    print(analytics)
 
-    return dash_table.DataTable(
-        data=analytics.to_dict("records"),
-        columns=[{"name": i, "id": i} for i in (analytics.columns)],
-    )
+def uploaded_files():
+    """List the files in the upload directory."""
+    files = []
+    for filename in os.listdir(upload_folder):
+        path = os.path.join(upload_folder, filename)
+        if os.path.isfile(path):
+            files.append(filename)
+    return files
+
+
+def file_download_link(filename):
+    """Create a Plotly Dash 'A' element that downloads a file from the app."""
+    location = "/download/{}".format(urlquote(filename))
+    return html.A(filename, href=location)
+
+
+@app.callback(
+    Output("file-list", "children"),
+    [Input("upload-data", "filename"), Input("upload-data", "contents")],
+)
+def update_output(uploaded_filenames, uploaded_file_contents):
+    """Save uploaded files and regenerate the file list."""
+
+    if uploaded_filenames is not None and uploaded_file_contents is not None:
+        for name, data in zip(uploaded_filenames, uploaded_file_contents):
+            save_file(name, data)
+
+    files = uploaded_files()
+    if len(files) == 0:
+        return [html.Li("No files yet!")]
+    else:
+        return [html.Li(file_download_link(filename)) for filename in files]
 
 
 if __name__ == "__main__":
-    app.run_server(debug=True)
+    app.run_server(debug=True, port=8888)

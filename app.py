@@ -1,7 +1,7 @@
 import datetime
 import io
 import time
-import os
+import os, sys
 import base64
 
 from flask import Flask, send_from_directory
@@ -16,6 +16,9 @@ from pdf2image import convert_from_bytes
 
 from lib import o3d_h
 
+import pydeck
+import dash_deck
+
 # region pre-run and helper functions definition
 def spacing():
     return html.Br()
@@ -25,20 +28,21 @@ def spacing():
 
 # region settings
 # path to uploaded files:
-upload_folder = (
-    "C:\\Users\\eugeniobernard\\local_workspaces\\composite-repair-dashboard\\test_run"
-)
+upload_folder = "test_run"
+# currentpath = os.getcwd()
+currentpath = sys.path[0]
+upload_folder = os.path.join(currentpath, upload_folder)
 
 if not os.path.exists(upload_folder):
     os.makedirs(upload_folder)
 
 # path to pdf decoding library:
-poppler_path = os.path.join(os.getcwd(), "lib\\poppler-0.68.0\\bin")
+poppler_path = os.path.join(currentpath, "lib\\poppler-0.68.0\\bin")
 
 # path to .csv files:
-oems_table_path = os.path.join(os.getcwd(), "tables", "oems_table.csv")
-products_table_path = os.path.join(os.getcwd(), "tables", "products_table.csv")
-repairs_table_path = os.path.join(os.getcwd(), "tables", "repairs_table.csv")
+oems_table_path = os.path.join(currentpath, "tables", "oems_table.csv")
+products_table_path = os.path.join(currentpath, "tables", "products_table.csv")
+repairs_table_path = os.path.join(currentpath, "tables", "repairs_table.csv")
 
 # read .csv files and list first column:
 oems_table = pd.read_csv(oems_table_path)

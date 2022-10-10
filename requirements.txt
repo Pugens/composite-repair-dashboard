@@ -5,5 +5,7 @@ dash
 pandas
 plotly
 open3d
+pydeck
+dash-deck
 gunicorn
 pdf2image

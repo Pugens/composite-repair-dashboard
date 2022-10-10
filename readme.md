@@ -43,6 +43,9 @@ conda activate composite_repair_dashboard
 - https://docs.faculty.ai/user-guide/apps/examples/dash_file_upload_download.html 
 - https://github.com/aegis1980/dash-obj-in-3dmesh
 
+### Open3D examples:
+- https://dash.gallery/dash-deck-explorer/point-cloud-layer
+
 ## Possible limitations:
 - The app is not responsive, so it will not work on mobile devices.
 - The app is not optimized for large datasets, so it will not work well with large datasets.
@@ -55,3 +58,16 @@ conda activate composite_repair_dashboard
 
 ## Inspiration:
 [Gallery of dashboard built with dash] (https://dash.gallery/Portal/?search=image)
+
+## Libraries used:
+- black : The uncompromising code formatter
+- numpy : The fundamental package for scientific computing with Python
+- flask : A lightweight WSGI web application framework
+- dash : A productive Python framework for building web applications
+- pandas : A fast, powerful, flexible and easy to use open source data analysis and manipulation tool
+- plotly : An open-source, interactive graphing library for Python
+- open3d : An open-source library that supports rapid development of software that deals with 3D data
+- pydeck : A Python library for creating WebGL-powered visualizations of geospatial data
+- dash-deck : A Dash component library for Deck.gl
+- gunicorn : A Python WSGI HTTP Server for UNIX
+- pdf2image : A Python library that wraps the pdftoppm utility to convert PDF to a PIL (pillow) Image - object
